@@ -1,1 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChefBid PRO — AI Catering Intelligence for Serious Chefs</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── BRAND TOKENS ── */
+:root {
+  --cream:       #f2ebe0;
+  --cream-deep:  #e8dfd0;
+  --cream-dark:  #d4c9b5;
+  --charcoal:    #1e1c19;
+  --charcoal-2:  #2c2926;
+  --charcoal-3:  #3d3a35;
+  --charcoal-4:  #524e47;
+  --ember:       #c4622d;
+  --ember-light: #d97540;
+  --ember-pale:  rgba(196,98,45,0.1);
+  --gold:        #b8920a;
+  --gold-light:  #d4a820;
+  --text-on-dark: #f2ebe0;
+  --text-dim:    #a09880;
+  --text-mid:    #7a7260;
+  --border-cream: rgba(180,165,140,0.3);
+  --border-dark:  rgba(255,255,255,0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Barlow', sans-serif;
+  background: var(--charcoal);
+  color: var(--text-on-dark);
+  overflow-x: hidden;
+}
+
+/* ── NOISE TEXTURE ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ══════════════════════════
+   NAV
+══════════════════════════ */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 0 48px;
+  height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(30,28,25,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-dark);
+}
+.nav-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.55rem; font-weight: 900;
+  color: var(--cream);
+  letter-spacing: -0.5px;
+  display: flex; align-items: center; gap: 10px;
+}
+.nav-logo .pro-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 2px;
+  background: var(--ember);
+  color: white;
+  padding: 2px 7px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.nav-links {
+  display: flex; align-items: center; gap: 32px;
+  list-style: none;
+}
+.nav-links a {
+  color: rgba(242,235,224,0.55);
+  text-decoration: none;
+  font-size: 0.88rem; font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--cream); }
+.nav-cta {
+  background: var(--ember);
+  color: white !important;
+  padding: 9px 22px !important;
+  border-radius: 6px;
+  font-weight: 600 !important;
+  transition: background 0.2s, transform 0.2s !important;
+}
+.nav-cta:hover { background: var(--ember-light) !important; transform: translateY(-1px); }
+
+@media(max-width:768px) {
+  nav { padding: 0 20px; }
+  .nav-links { display: none; }
+}
+
+/* ══════════════════════════
+   HERO
+══════════════════════════ */
+.hero {
+  min-height: 100vh;
+  display: flex; align-items: center;
+  position: relative; overflow: hidden;
+  padding: 120px 48px 80px;
+}
+
+/* Diagonal split background */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0; right: -5%; bottom: 0;
+  width: 52%;
+  background: var(--charcoal-2);
+  clip-path: polygon(8% 0, 100% 0, 100% 100%, 0% 100%);
+  z-index: 0;
+}
+
+/* Ember accent line */
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 20%; left: 0;
+  width: 3px; height: 200px;
+  background: linear-gradient(to bottom, transparent, var(--ember), transparent);
+  z-index: 1;
+}
+
+.hero-content {
+  position: relative; z-index: 2;
+  max-width: 600px;
+  animation: heroIn 0.9s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+@keyframes heroIn {
+  from { opacity:0; transform: translateY(30px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+.hero-eyebrow {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 4px; text-transform: uppercase;
+  color: var(--ember);
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.hero-eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 32px; height: 2px;
+  background: var(--ember);
+}
+
+.hero-headline {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.8rem, 5vw, 4.4rem);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--cream);
+  margin-bottom: 24px;
+  letter-spacing: -1px;
+}
+.hero-headline em {
+  font-style: italic;
+  color: var(--ember-light);
+}
+
+.hero-sub {
+  font-size: 1.15rem;
+  font-weight: 300;
+  color: rgba(242,235,224,0.65);
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 40px;
+}
+
+.hero-actions {
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+}
+.btn-primary-hero {
+  background: var(--ember);
+  color: white;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 16px 36px;
+  border-radius: 6px; border: none; cursor: pointer;
+  text-decoration: none; display: inline-block;
+  transition: all 0.25s;
+  box-shadow: 0 8px 30px rgba(196,98,45,0.35);
+}
+.btn-primary-hero:hover {
+  background: var(--ember-light);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 40px rgba(196,98,45,0.45);
+}
+.btn-ghost {
+  color: var(--cream);
+  font-size: 0.9rem; font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(242,235,224,0.3);
+  padding-bottom: 2px;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-ghost:hover { border-color: var(--ember); color: var(--ember-light); }
+
+.hero-proof {
+  margin-top: 48px;
+  display: flex; align-items: center; gap: 24px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+.hero-proof-divider { width: 1px; height: 32px; background: var(--border-dark); }
+.hero-stat strong {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--cream);
+}
+
+/* Hero visual panel */
+.hero-visual {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 50%;
+  z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 80px 48px 80px 80px;
+  animation: heroVisIn 1s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+}
+@keyframes heroVisIn {
+  from { opacity:0; transform: translateX(20px); }
+  to   { opacity:1; transform: translateX(0); }
+}
+
+.mock-card {
+  background: var(--charcoal);
+  border: 1px solid rgba(242,235,224,0.1);
+  border-radius: 14px;
+  padding: 24px;
+  width: 100%; max-width: 440px;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+}
+.mock-card-header {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--ember);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.mock-card-header::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--ember); border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.mock-menu-input {
+  background: var(--charcoal-2);
+  border: 1px solid rgba(242,235,224,0.1);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.82rem; color: rgba(242,235,224,0.6);
+  font-style: italic; margin-bottom: 14px;
+  line-height: 1.5;
+}
+.mock-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-bottom: 14px; }
+.mock-table th {
+  background: var(--charcoal-3);
+  color: var(--text-dim);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.6rem; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 6px 10px; text-align: left;
+}
+.mock-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: rgba(242,235,224,0.75);
+}
+.mock-table .best { color: #5cb88a; font-weight: 600; }
+.mock-table .item-name { color: var(--cream); font-weight: 500; }
+
+.mock-summary {
+  background: var(--ember-pale);
+  border: 1px solid rgba(196,98,45,0.25);
+  border-radius: 8px; padding: 12px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.mock-summary .label { font-size: 0.75rem; color: var(--text-dim); }
+.mock-summary .amount {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem; font-weight: 700; color: var(--ember-light);
+}
+.mock-best-vendor {
+  font-size: 0.72rem; color: #5cb88a;
+  margin-top: 6px; font-weight: 600;
+}
+
+@media(max-width:900px) {
+  .hero { padding: 100px 24px 60px; }
+  .hero::before { display: none; }
+  .hero-visual { display: none; }
+  .hero-content { max-width: 100%; }
+}
+
+/* ══════════════════════════
+   PROBLEM STRIP
+══════════════════════════ */
+.problem-strip {
+  background: var(--cream);
+  padding: 64px 48px;
+  position: relative; z-index: 1;
+}
+.problem-inner {
+  max-width: 1100px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 60px; align-items: center;
+}
+.problem-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--ember);
+  margin-bottom: 16px;
+}
+.problem-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem; font-weight: 700;
+  color: var(--charcoal); line-height: 1.2;
+  margin-bottom: 20px;
+}
+.problem-body {
+  font-size: 1rem; color: var(--charcoal-4);
+  line-height: 1.8; font-weight: 300;
+}
+.pain-points { list-style: none; }
+.pain-points li {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 14px 0; border-bottom: 1px solid var(--border-cream);
+  font-size: 0.95rem; color: var(--charcoal-3);
+}
+.pain-points li:last-child { border: none; }
+.pain-icon {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--ember-pale);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; flex-shrink: 0; margin-top: 2px;
+  border: 1px solid rgba(196,98,45,0.2);
+}
+
+@media(max-width:768px) {
+  .problem-inner { grid-template-columns: 1fr; gap: 32px; }
+  .problem-strip { padding: 48px 24px; }
+}
+
+/* ══════════════════════════
+   HOW IT WORKS
+══════════════════════════ */
+.how-section {
+  background: var(--charcoal-2);
+  padding: 100px 48px;
+  position: relative; overflow: hidden;
+}
+.how-section::before {
+  content: 'HOW IT WORKS';
+  position: absolute;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18vw; font-weight: 900;
+  color: rgba(255,255,255,0.015);
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  white-space: nowrap; pointer-events: none;
+  letter-spacing: -3px;
+}
+.section-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--ember);
+  text-align: center; margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 700;
+  text-align: center; color: var(--cream);
+  margin-bottom: 64px; line-height: 1.2;
+}
+.steps-grid {
+  max-width: 1000px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  position: relative; z-index: 1;
+}
+.step {
+  padding: 40px 32px;
+  background: var(--charcoal);
+  transition: background 0.3s;
+  position: relative;
+}
+.step:hover { background: var(--charcoal-3); }
+.step-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 4rem; font-weight: 900;
+  color: rgba(196,98,45,0.15);
+  line-height: 1; margin-bottom: 16px;
+  display: block;
+}
+.step-icon { font-size: 2rem; margin-bottom: 14px; display: block; }
+.step-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.15rem; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--cream); margin-bottom: 10px;
+}
+.step-body { font-size: 0.9rem; color: var(--text-dim); line-height: 1.7; font-weight: 300; }
+
+/* Connector arrow */
+.step:not(:last-child)::after {
+  content: '→';
+  position: absolute; right: -18px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.5rem; color: var(--ember);
+  z-index: 2;
+}
+
+@media(max-width:768px) {
+  .steps-grid { grid-template-columns: 1fr; }
+  .step:not(:last-child)::after { display: none; }
+  .how-section { padding: 64px 24px; }
+}
+
+/* ══════════════════════════
+   FEATURES
+══════════════════════════ */
+.features-section {
+  background: var(--cream);
+  padding: 100px 48px;
+}
+.features-grid {
+  max-width: 1100px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  margin-top: 16px;
+}
+.feature-card {
+  background: white;
+  border: 1px solid var(--border-cream);
+  border-radius: 12px; padding: 32px;
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+}
+.feature-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 50px rgba(30,28,25,0.1);
+  border-color: var(--ember);
+}
+.feature-icon {
+  width: 52px; height: 52px;
+  background: var(--ember-pale);
+  border: 1px solid rgba(196,98,45,0.2);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; margin-bottom: 20px;
+}
+.feature-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem; font-weight: 700;
+  color: var(--charcoal); margin-bottom: 10px;
+}
+.feature-body { font-size: 0.88rem; color: var(--charcoal-4); line-height: 1.75; font-weight: 300; }
+
+.features-section .section-title { color: var(--charcoal); }
+.features-section .section-label { color: var(--ember); }
+
+@media(max-width:900px) {
+  .features-grid { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width:600px) {
+  .features-grid { grid-template-columns: 1fr; }
+  .features-section { padding: 64px 24px; }
+}
+
+/* ══════════════════════════
+   WHO IT'S FOR
+══════════════════════════ */
+.who-section {
+  background: var(--charcoal);
+  padding: 100px 48px;
+  position: relative; overflow: hidden;
+}
+.who-grid {
+  max-width: 1100px; margin: 64px auto 0;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+}
+.who-card {
+  padding: 36px 28px;
+  background: var(--charcoal-2);
+  border-top: 3px solid transparent;
+  transition: border-color 0.3s, background 0.3s;
+  cursor: default;
+}
+.who-card:hover { border-top-color: var(--ember); background: var(--charcoal-3); }
+.who-emoji { font-size: 2.5rem; margin-bottom: 16px; display: block; }
+.who-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.05rem; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--cream); margin-bottom: 8px;
+}
+.who-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.7; font-weight: 300; }
+
+@media(max-width:900px) { .who-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:600px) { .who-grid { grid-template-columns: 1fr; } .who-section { padding: 64px 24px; } }
+
+/* ══════════════════════════
+   PRICING
+══════════════════════════ */
+.pricing-section {
+  background: var(--cream-deep);
+  padding: 100px 48px;
+}
+.pricing-section .section-title { color: var(--charcoal); }
+.pricing-section .section-label { color: var(--ember); }
+
+.pricing-grid {
+  max-width: 900px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 24px; margin-top: 16px;
+}
+.price-card {
+  background: white;
+  border: 1px solid var(--border-cream);
+  border-radius: 14px; padding: 36px 28px;
+  position: relative;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+.price-card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(30,28,25,0.12); }
+.price-card.featured {
+  background: var(--charcoal);
+  border-color: var(--ember);
+  color: var(--cream);
+  transform: scale(1.04);
+  box-shadow: 0 30px 60px rgba(30,28,25,0.25);
+}
+.price-badge {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: var(--ember); color: white;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; padding: 4px 14px; border-radius: 20px;
+  white-space: nowrap;
+}
+.plan-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--ember);
+  margin-bottom: 12px;
+}
+.plan-price {
+  font-family: 'Playfair Display', serif;
+  font-size: 3rem; font-weight: 900;
+  color: var(--charcoal); line-height: 1; margin-bottom: 6px;
+}
+.price-card.featured .plan-price { color: var(--cream); }
+.plan-period { font-size: 0.82rem; color: var(--text-mid); margin-bottom: 24px; font-weight: 300; }
+.price-card.featured .plan-period { color: var(--text-dim); }
+.plan-features { list-style: none; margin-bottom: 28px; }
+.plan-features li {
+  padding: 9px 0; border-bottom: 1px solid var(--border-cream);
+  font-size: 0.88rem; color: var(--charcoal-4);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.price-card.featured .plan-features li { color: rgba(242,235,224,0.7); border-color: rgba(255,255,255,0.08); }
+.plan-features li::before { content: '✓'; color: var(--ember); font-weight: 700; flex-shrink: 0; }
+.plan-cta {
+  width: 100%; padding: 13px;
+  border-radius: 8px; border: 1px solid var(--charcoal);
+  background: transparent; color: var(--charcoal);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.9rem; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+}
+.plan-cta:hover { background: var(--charcoal); color: white; }
+.price-card.featured .plan-cta {
+  background: var(--ember); border-color: var(--ember); color: white;
+}
+.price-card.featured .plan-cta:hover { background: var(--ember-light); }
+
+@media(max-width:768px) {
+  .pricing-grid { grid-template-columns: 1fr; max-width: 380px; }
+  .price-card.featured { transform: scale(1); }
+  .pricing-section { padding: 64px 24px; }
+}
+
+/* ══════════════════════════
+   TESTIMONIAL / QUOTE
+══════════════════════════ */
+.quote-section {
+  background: var(--charcoal-2);
+  padding: 80px 48px;
+  text-align: center;
+  position: relative;
+}
+.quote-mark {
+  font-family: 'Playfair Display', serif;
+  font-size: 8rem; line-height: 0.5;
+  color: var(--ember); opacity: 0.3;
+  display: block; margin-bottom: 24px;
+}
+.quote-text {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.3rem, 2.5vw, 1.9rem);
+  font-style: italic; font-weight: 400;
+  color: var(--cream); max-width: 800px;
+  margin: 0 auto 28px; line-height: 1.6;
+}
+.quote-author {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--ember);
+}
+
+/* ══════════════════════════
+   CTA SECTION
+══════════════════════════ */
+.cta-section {
+  background: var(--charcoal);
+  padding: 120px 48px;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.cta-section::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(196,98,45,0.12) 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+.cta-eyebrow {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 4px;
+  text-transform: uppercase; color: var(--ember);
+  margin-bottom: 20px;
+}
+.cta-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.2rem, 4vw, 3.5rem); font-weight: 900;
+  color: var(--cream); line-height: 1.1;
+  margin-bottom: 20px;
+}
+.cta-sub {
+  font-size: 1.05rem; color: rgba(242,235,224,0.55);
+  max-width: 500px; margin: 0 auto 40px;
+  line-height: 1.7; font-weight: 300;
+}
+.cta-buttons { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+
+/* ══════════════════════════
+   FOOTER
+══════════════════════════ */
+footer {
+  background: var(--charcoal-2);
+  border-top: 1px solid var(--border-dark);
+  padding: 40px 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+}
+.footer-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem; font-weight: 900; color: var(--cream);
+}
+.footer-copy { font-size: 0.8rem; color: var(--text-dim); }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a {
+  font-size: 0.8rem; color: var(--text-dim);
+  text-decoration: none; transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--cream); }
+
+/* ══════════════════════════
+   SCROLL ANIMATIONS
+══════════════════════════ */
+.fade-up {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+.fade-up:nth-child(2) { transition-delay: 0.1s; }
+.fade-up:nth-child(3) { transition-delay: 0.2s; }
+.fade-up:nth-child(4) { transition-delay: 0.3s; }
+.fade-up:nth-child(5) { transition-delay: 0.4s; }
+.fade-up:nth-child(6) { transition-delay: 0.5s; }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-logo">ChefBid <span class="pro-tag">PRO</span></div>
+  <ul class="nav-links">
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="/contact">Contact</a></li>
+    <li><a href="/app" class="nav-cta">Start Free Trial</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-eyebrow">AI-Powered Catering Intelligence</div>
+    <h1 class="hero-headline">
+      Stop guessing.<br>
+      Start <em>knowing</em><br>
+      your numbers.
+    </h1>
+    <p class="hero-sub">
+      ChefBid PRO calculates exact quantities, compares vendor prices, and builds your full event cost in seconds — so you cook smarter and profit more.
+    </p>
+    <div class="hero-actions">
+      <a href="/app" class="btn-primary-hero">Start Free — No Card Needed</a>
+      <a href="#how" class="btn-ghost">See how it works →</a>
+    </div>
+    <div class="hero-proof">
+      <div class="hero-stat"><strong>150+</strong> ingredients auto-scaled</div>
+      <div class="hero-proof-divider"></div>
+      <div class="hero-stat"><strong>5</strong> vendors compared instantly</div>
+      <div class="hero-proof-divider"></div>
+      <div class="hero-stat"><strong>60 sec</strong> full event cost</div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="mock-card">
+      <div class="mock-card-header">AI Order Sheet · Live</div>
+      <div class="mock-menu-input">
+        "Grilled chicken breast, roasted asparagus, garlic mashed potatoes, dinner rolls — 150 guests, full service"
+      </div>
+      <table class="mock-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Per Person</th>
+            <th>Total</th>
+            <th>Best of 5</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="item-name">Chicken Breast</td>
+            <td>6 oz</td>
+            <td>110 lbs</td>
+            <td class="best">$341 ★</td>
+          </tr>
+          <tr>
+            <td class="item-name">Asparagus</td>
+            <td>4 oz</td>
+            <td>68 lbs</td>
+            <td class="best">$149 ★</td>
+          </tr>
+          <tr>
+            <td class="item-name">Potatoes</td>
+            <td>5 oz</td>
+            <td>86 lbs</td>
+            <td class="best">$72 ★</td>
+          </tr>
+          <tr>
+            <td class="item-name">Dinner Rolls</td>
+            <td>2 each</td>
+            <td>330 rolls</td>
+            <td class="best">$89 ★</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="mock-summary">
+        <div>
+          <div class="label">TOTAL FOOD COST</div>
+          <div class="mock-best-vendor">✓ Best deal: Restaurant Depot</div>
+        </div>
+        <div class="amount">$651</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PROBLEM ── -->
+<section class="problem-strip">
+  <div class="problem-inner">
+    <div>
+      <div class="problem-label">The Problem</div>
+      <h2 class="problem-heading">Every chef knows this pain.</h2>
+      <p class="problem-body">
+        You're talented in the kitchen. But calculating food costs, comparing vendor prices, and building event proposals takes hours — time you don't have. One miscalculation and your margin disappears.
+      </p>
+    </div>
+    <ul class="pain-points">
+      <li class="fade-up">
+        <div class="pain-icon">⏱</div>
+        <div><strong>Hours lost on spreadsheets</strong> — manually calculating ounces, calling vendors, doing math by hand for every event.</div>
+      </li>
+      <li class="fade-up">
+        <div class="pain-icon">📉</div>
+        <div><strong>Margins eroded by guesswork</strong> — underestimating food cost by even 10% on a 150-person event can cost you $500+.</div>
+      </li>
+      <li class="fade-up">
+        <div class="pain-icon">🏪</div>
+        <div><strong>No easy vendor comparison</strong> — Sysco vs. US Foods vs. Restaurant Depot prices change constantly and nobody tracks them.</div>
+      </li>
+      <li class="fade-up">
+        <div class="pain-icon">📋</div>
+        <div><strong>Unprofessional proposals</strong> — handwritten quotes and rough estimates lose clients to competitors who look more organized.</div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section class="how-section" id="how">
+  <div class="section-label">The Solution</div>
+  <h2 class="section-title">From menu to full cost in 3 steps</h2>
+  <div class="steps-grid">
+    <div class="step fade-up">
+      <span class="step-num">01</span>
+      <span class="step-icon">📝</span>
+      <div class="step-title">Describe Your Menu</div>
+      <p class="step-body">Type your menu naturally — "grilled salmon, roasted asparagus, garlic mashed potatoes for 150 guests." No forms, no templates.</p>
+    </div>
+    <div class="step fade-up">
+      <span class="step-num">02</span>
+      <span class="step-icon">🏪</span>
+      <div class="step-title">Enter Your Vendors</div>
+      <p class="step-body">Add up to 5 vendors — broadline distributors, wholesale clubs, local markets, or specialty suppliers. Tag each by type and AI prices each item accordingly.</p>
+    </div>
+    <div class="step fade-up">
+      <span class="step-num">03</span>
+      <span class="step-icon">📊</span>
+      <div class="step-title">Get Your Order Sheet</div>
+      <p class="step-body">Instantly see portions per person, total quantities with waste buffer, vendor prices side-by-side, best deal highlighted — and your total food cost.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="features-section" id="features">
+  <div class="section-label">Features</div>
+  <h2 class="section-title" style="color:var(--charcoal)">Everything a professional needs</h2>
+  <div class="features-grid">
+    <div class="feature-card fade-up">
+      <div class="feature-icon">🤖</div>
+      <div class="feature-title">AI Portion Calculator</div>
+      <p class="feature-body">Describe any menu and AI calculates exact professional catering portions per person, scaled to your guest count with a 10% waste buffer built in.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">🏪</div>
+      <div class="feature-title">Vendor Price Comparison</div>
+      <p class="feature-body">Compare up to 5 vendors — Sysco, US Foods, Restaurant Depot, Gordon Food Service, local markets, specialty suppliers. Tag each by type (broadline, wholesale club, local market). Best deal highlighted per item and in totals.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Profit & Margin Calculator</div>
+      <p class="feature-body">Enter food, labor, and overhead — see your margin instantly. Get AI-powered pricing strategy and market rate guidance for your event type and region.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">👨‍🍳</div>
+      <div class="feature-title">Smart Labor Costing</div>
+      <p class="feature-body">Full service vs. drop-off logic built in. Enter your staff, rates, and hours — get a live line-by-line labor breakdown. Drop-off adds separate cook and delivery time.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">📋</div>
+      <div class="feature-title">Event History & PDF Export</div>
+      <p class="feature-body">Every event saved to your account. Export a professional branded PDF report for your records or to share with clients and team members.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">💬</div>
+      <div class="feature-title">AI Sous Chef</div>
+      <p class="feature-body">Ask follow-up questions after any analysis — "how do I cut food cost 15%?" or "what's a protein substitute under $4/lb?" Get instant, expert answers.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── WHO IT'S FOR ── -->
+<section class="who-section">
+  <div class="section-label">Who It's For</div>
+  <h2 class="section-title">Built for every food professional</h2>
+  <div class="who-grid">
+    <div class="who-card fade-up">
+      <span class="who-emoji">👨‍🍳</span>
+      <div class="who-title">Independent Caterers</div>
+      <p class="who-desc">Price events accurately, protect your margins, and win more bids with professional-grade cost analysis.</p>
+    </div>
+    <div class="who-card fade-up">
+      <span class="who-emoji">🍽️</span>
+      <div class="who-title">Restaurant Owners</div>
+      <p class="who-desc">Track ingredient costs across vendors, optimize menu pricing, and keep food cost percentages where they need to be.</p>
+    </div>
+    <div class="who-card fade-up">
+      <span class="who-emoji">🚚</span>
+      <div class="who-title">Food Truck Operators</div>
+      <p class="who-desc">Scale recipes to any event size, compare supplier prices, and know your true cost per plate before every service.</p>
+    </div>
+    <div class="who-card fade-up">
+      <span class="who-emoji">⭐</span>
+      <div class="who-title">Personal Chefs</div>
+      <p class="who-desc">Create polished client proposals backed by real numbers. Show clients exactly what they're getting and why it's worth it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── QUOTE ── -->
+<section class="quote-section">
+  <span class="quote-mark">"</span>
+  <p class="quote-text">
+    As a chef, your time is worth more than spreadsheets. ChefBid PRO was built from real kitchen experience — because the chef who knows their numbers is the chef who stays in business.
+  </p>
+  <div class="quote-author">— Built by a Professional Chef, for Professional Chefs</div>
+</section>
+
+<!-- ── PRICING ── -->
+<section class="pricing-section" id="pricing">
+  <div class="section-label">Pricing</div>
+  <h2 class="section-title">Simple, transparent pricing</h2>
+  <div class="pricing-grid">
+    <div class="price-card fade-up">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price">Free</div>
+      <div class="plan-period">Forever free</div>
+      <ul class="plan-features">
+        <li>5 events per month</li>
+        <li>AI portion calculator</li>
+        <li>1 vendor comparison</li>
+        <li>Basic cost summary</li>
+        <li>PDF export</li>
+      </ul>
+      <button class="plan-cta" onclick="window.location='/app'">Get Started Free</button>
+    </div>
+    <div class="price-card featured fade-up">
+      <div class="price-badge">Most Popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">$29</div>
+      <div class="plan-period">per month · cancel anytime</div>
+      <ul class="plan-features">
+        <li>Unlimited events</li>
+        <li>Up to 5 vendor comparisons</li>
+        <li>Full AI analysis</li>
+        <li>Labor & margin calculator</li>
+        <li>Vendor price history</li>
+        <li>AI Sous Chef chat</li>
+        <li>Priority support</li>
+      </ul>
+      <button class="plan-cta" onclick="window.location='/app'">Start 14-Day Free Trial</button>
+    </div>
+    <div class="price-card fade-up">
+      <div class="plan-name">Business</div>
+      <div class="plan-price">$79</div>
+      <div class="plan-period">per month</div>
+      <ul class="plan-features">
+        <li>Everything in Pro</li>
+        <li>Up to 5 team members</li>
+        <li>Client proposal generator</li>
+        <li>White-label PDF reports</li>
+        <li>Recipe database</li>
+        <li>Dedicated support</li>
+      </ul>
+      <button class="plan-cta" onclick="window.location='mailto:info@chefbidpro.com'">Contact Us</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── FINAL CTA ── -->
+<section class="cta-section">
+  <div class="cta-eyebrow">Ready to take control?</div>
+  <h2 class="cta-title">Your next event.<br>Your best margin.</h2>
+  <p class="cta-sub">Join thousands of food professionals who price with confidence, source smarter, and protect their bottom line.</p>
+  <div class="cta-buttons">
+    <a href="/app" class="btn-primary-hero">Start Free Trial — No Card Needed</a>
+    <a href="#" onclick="showDemoModal();return false;" class="btn-ghost" style="color:rgba(242,235,224,0.6)">Watch a 60-second demo →</a>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">ChefBid PRO</div>
+  <div class="footer-copy">© 2026 ChefBid PRO. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="/contact">Contact</a>
+  </div>
+</footer>
+
+<script>
+// Scroll-triggered fade-up animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if(entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+// Smooth nav highlight on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if(window.scrollY >= s.offsetTop - 100) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.style.color = a.getAttribute('href') === '#'+current
+      ? 'var(--cream)'
+      : 'rgba(242,235,224,0.55)';
+  });
+});
+</script>
+
+<!-- Demo Coming Soon Modal -->
+<div id="demoModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(30,28,25,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+  <div style="background:#2c2926;border:1px solid rgba(196,98,45,0.3);border-radius:16px;padding:48px 40px;max-width:440px;width:90%;text-align:center;position:relative;box-shadow:0 40px 80px rgba(0,0,0,0.5)">
+    <button onclick="hideDemoModal()" style="position:absolute;top:16px;right:20px;background:none;border:none;color:rgba(242,235,224,0.4);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+    <div style="font-size:3rem;margin-bottom:16px">🎬</div>
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:#f2ebe0;margin-bottom:12px">Demo Coming Soon</h3>
+    <p style="font-size:0.92rem;color:rgba(242,235,224,0.55);line-height:1.7;margin-bottom:28px">
+      We're putting the finishing touches on a 60-second walkthrough. In the meantime — the best way to see ChefBid PRO is to try it yourself. Free, no card needed.
+    </p>
+    <a href="/app" style="display:block;background:#c4622d;color:white;font-family:'Barlow Condensed',sans-serif;font-size:0.95rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:14px 28px;border-radius:8px;text-decoration:none;transition:background 0.2s" onmouseover="this.style.background='#d97540'" onmouseout="this.style.background='#c4622d'">
+      Start Free Trial Now →
+    </a>
+  </div>
+</div>
+
+<script>
+function showDemoModal() {
+  const m = document.getElementById('demoModal');
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function hideDemoModal() {
+  const m = document.getElementById('demoModal');
+  m.style.display = 'none';
+  document.body.style.overflow = '';
+}
+// Close on backdrop click
+document.getElementById('demoModal').addEventListener('click', function(e) {
+  if(e.target === this) hideDemoModal();
+});
+// Close on Escape
+document.addEventListener('keydown', e => { if(e.key === 'Escape') hideDemoModal(); });
+</script>
+
+</body>
+</html>
 
