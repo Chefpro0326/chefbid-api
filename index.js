@@ -57,19 +57,6 @@ app.get("/contact", (c) => {
   catch(e) { return c.text("Not found", 404); }
 });
 
-app.get("/debug", (c) => c.json({
-  version: "v2",
-  hasAnthropicKey: !!AKEY,
-  akeyLength: AKEY.length,
-  akeyStart: AKEY.slice(0,20),
-  akeyEnd: AKEY.slice(-12),
-  hasStripeSecret: !!SKEY,
-  stripeStart: SKEY ? SKEY.slice(0,12) : "NOT FOUND",
-  hasPriceId: !!SPRO,
-  hasBasicPriceId: !!SBAS,
-  envKeys: Object.keys(process.env).filter(k => k.includes("STRIPE") || k.includes("ANTHROPIC"))
-}));
-
 app.post("/api/ai", async (c) => {
   if(!AKEY) return c.json({ error: { message: "API key not configured." } }, 500);
   try {
