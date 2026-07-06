@@ -1567,7 +1567,7 @@ Respond with ONLY this JSON:
 
     clearTimeout(timeout);
     const data = await fetchAI({
-      model: "claude-opus-4-8",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
@@ -2008,7 +2008,7 @@ Total event price and per-person price to hit ${targetMargin}% margin after $${l
 Three specific tips for this menu/event. Keep each tip to 1-2 sentences.`;
 
   try {
-    const data = await fetchAI({ model: "claude-opus-4-8", max_tokens: 1500, messages: [{ role:"user", content:prompt }] });
+    const data = await fetchAI({ model: "claude-sonnet-4-6", max_tokens: 1500, messages: [{ role:"user", content:prompt }] });
     if(data.error) {
       const errMsg = data.error.message || JSON.stringify(data.error);
       document.getElementById('aiMainText').innerHTML = `<span style="color:var(--red)">⚠ AI Error: ${errMsg}. Please try again.</span>`;
@@ -2072,7 +2072,7 @@ async function askFollowUp() {
   btn.disabled = true; btn.textContent = '...';
   const ctx = `Event: ${lastAnalysis.name}, ${lastAnalysis.guests} guests, ${lastAnalysis.svcType} service. Menu: ${lastAnalysis.recipe}. Food cost: $${lastAnalysis.foodTotal?.toFixed(0)}, Labor: $${lastAnalysis.labor?.toFixed(0)}.`;
   try {
-    const data = await fetchAI({ model:"claude-opus-4-8", max_tokens:1000, messages:[{role:"user",content:`ChefBid AI. Context: ${ctx}\n\nChef asks: ${q}\n\nAnswer concisely, chef-to-chef, with specific numbers.`}] });
+    const data = await fetchAI({ model:"claude-sonnet-4-6", max_tokens:1000, messages:[{role:"user",content:`ChefBid AI. Context: ${ctx}\n\nChef asks: ${q}\n\nAnswer concisely, chef-to-chef, with specific numbers.`}] });
     if(data.error) throw new Error(data.error.message||'API error');
     const text = data.content?.map(i=>i.text||'').join('\n')||'Unable to respond.';
     document.getElementById('fuText').innerHTML = fmtAI(text);
@@ -2098,7 +2098,7 @@ async function getPricingAdvice() {
   el.style.display='block'; el.classList.add('show');
   el.innerHTML = '<div class="ai-badge"><div class="ai-dot"></div> AI PRICING STRATEGY</div><div class="ai-text">Analyzing...</div>';
   try {
-    const data = await fetchAI({ model:"claude-opus-4-8", max_tokens:1000, messages:[{role:"user",content:`You are ChefBid AI, a pricing strategist for catering businesses.\n\nEvent context: ${ctx||'Not provided'}\nTotal cost breakdown: Food $${food}, Labor $${labor}, Overhead $${overhead}, Total cost $${totalCost}, Guests: ${guests}\n\nProvide:\n1. Market rate range for this type of event in the US (per person and total)\n2. Three pricing tiers: Budget, Standard, Premium with rationale\n3. What margin percentage to target and why\n4. Any upsell opportunities (bar service, dessert station, etc.)\n5. One negotiation tip for dealing with budget-conscious clients\n\nBe specific with dollar amounts. Speak like a successful caterer coaching a peer.`}] });
+    const data = await fetchAI({ model:"claude-sonnet-4-6", max_tokens:1000, messages:[{role:"user",content:`You are ChefBid AI, a pricing strategist for catering businesses.\n\nEvent context: ${ctx||'Not provided'}\nTotal cost breakdown: Food $${food}, Labor $${labor}, Overhead $${overhead}, Total cost $${totalCost}, Guests: ${guests}\n\nProvide:\n1. Market rate range for this type of event in the US (per person and total)\n2. Three pricing tiers: Budget, Standard, Premium with rationale\n3. What margin percentage to target and why\n4. Any upsell opportunities (bar service, dessert station, etc.)\n5. One negotiation tip for dealing with budget-conscious clients\n\nBe specific with dollar amounts. Speak like a successful caterer coaching a peer.`}] });
     if(data.error) throw new Error(data.error.message||'API error');
     const text = data.content?.map(i=>i.text||'').join('\n')||'Unable to respond.';
     el.innerHTML = '<div class="ai-badge"><div class="ai-dot"></div> AI PRICING STRATEGY</div><div class="ai-text">'+fmtAI(text)+'</div>';
