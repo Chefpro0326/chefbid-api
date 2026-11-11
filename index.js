@@ -7,8 +7,15 @@ const AKEY = (process.env.ANTHROPIC_API_KEY || "").trim();
 const SKEY = (process.env.STRIPE_SECRET_KEY || "").trim();
 const SPRO = (process.env.STRIPE_PRICE_ID || "").trim();
 const SBAS = (process.env.STRIPE_BASIC_PRICE_ID || "").trim();
-const SB_URL = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
-const SB_SECRET = (process.env.SUPABASE_SECRET_KEY || "").trim();
+// Tolerate stray spaces/case in the setting names, e.g. "SUPABASE_URL " or "supabase_url".
+function envLoose(name) {
+  if(process.env[name]) return process.env[name];
+  const k = Object.keys(process.env).find(k => k.trim().toUpperCase() === name);
+  return k ? process.env[k] : "";
+}
+const SB_URL = ((envLoose("SUPABASE_URL") || "https://optkmulvhwvbowfofpbd.supabase.co").trim()
+  .replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, ""));
+const SB_SECRET = (envLoose("SUPABASE_SECRET_KEY") || envLoose("SUPABASE_SERVICE_ROLE_KEY")).trim();
 // Public (publishable) key — same one the app page uses. Used to verify sign-ins.
 const SB_PUBLIC = (process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_ikFTSJfkejuCmOlZ9Xv9Cg_FIdvRINq").trim();
 const PORT = process.env.PORT || "3000";
@@ -334,6 +341,8 @@ app.get("/api/health", async (c) => {
   const out = {
     anthropic_key: !!AKEY, stripe_key: !!SKEY, stripe_prices: !!(SPRO && SBAS),
     supabase_url: SB_URL || "(missing)",
+    supabase_url_setting: envLoose("SUPABASE_URL") ? "found" : "(not found — using built-in project URL)",
+    supabase_setting_names_seen: Object.keys(process.env).filter(k => /supa/i.test(k)).map(k => JSON.stringify(k)),
     supabase_secret_key: SB_SECRET ? (SB_SECRET.startsWith("sb_secret_") || SB_SECRET.startsWith("eyJ") ? "present" : "present but does not look like a secret key") : "(missing)"
   };
   try {
@@ -347,7 +356,10 @@ app.get("/api/health", async (c) => {
   try {
     const r = await sbRest("rpc/claim_event_slot", { method: "POST", body: JSON.stringify({ p_user: "00000000-0000-0000-0000-000000000000", p_month: "health", p_fingerprint: "x", p_limit: 0 }) });
     out.event_counter_installed = "yes";
-  } catch(e) { out.event_counter_installed = /does not exist|Could not find/i.test(e.message) ? "no — run the second Supabase script" : "yes"; }
+  } catch(e) {
+    out.event_counter_installed = /does not exist|Could not find/i.test(e.message) ? "no — run the second Supabase script"
+      : /foreign key|violates/i.test(e.message) ? "yes" : "unknown — " + e.message.slice(0, 100);
+  }
   return c.json(out);
 });
 app.post("/api/verify-subscription", handlePlanSync);
