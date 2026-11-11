@@ -1108,15 +1108,14 @@ const DB = {
 // Split API calls between two services
 // Stripe/subscription calls go to chefbid-api (has Stripe keys)
 // AI calls go to function-bun (has working Anthropic key)
-const AI_URL = 'https://chefbid-app-production.up.railway.app';
+const AI_URL = RAILWAY; // Render (chefbid-api). Railway is no longer used.
 const FREE_EVENT_LIMIT  = 3;
 const BASIC_EVENT_LIMIT = 10;
 
 // Plan levels
 function getUserPlan() {
   if(!currentUser) return 'free';
-  const plan = DB.get('plan_'+currentUser.email);
-  return plan || 'free'; // 'free', 'basic', 'pro'
+  return currentUser.plan || 'free'; // 'free', 'basic', 'pro' — set by the server from Stripe
 }
 
 function isPro() {
@@ -1144,15 +1143,34 @@ function canUseSousChef()     { return getUserPlan() === 'pro'; }
 function canUseAI()           { return isBasic(); } // basic + pro
 
 // ── AI FETCH WITH AUTO-RETRY ──
+async function authHeaders() {
+  const { data } = await SB.auth.getSession();
+  const token = data?.session?.access_token;
+  return token ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+               : { 'Content-Type': 'application/json' };
+}
+
 async function fetchAI(payload, retries = 3, delayMs = 3000) {
   for(let attempt = 1; attempt <= retries; attempt++) {
     try {
       const res = await fetch(AI_URL + '/api/ai', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
+      if(res.status === 402) {          // monthly event limit reached (checked by the server)
+        await refreshUsage();
+        showUpgradeModal();
+        const err = new Error(data.error?.message || "You've used all of this month's events.");
+        err.noRetry = true; throw err;
+      }
+      if(res.status === 401) {          // sign-in expired
+        showToast('Please sign in again.');
+        doLogout();
+        const err = new Error('Please sign in again.'); err.noRetry = true; throw err;
+      }
+      if(payload.eventFingerprint) refreshUsage();
       // If overloaded and retries remain — wait and retry
       if(data.error && data.error.message?.toLowerCase().includes('overload') && attempt < retries) {
         await new Promise(r => setTimeout(r, delayMs));
@@ -1161,7 +1179,7 @@ async function fetchAI(payload, retries = 3, delayMs = 3000) {
       }
       return data;
     } catch(e) {
-      if(attempt < retries) {
+      if(!e.noRetry && attempt < retries) {
         await new Promise(r => setTimeout(r, delayMs));
         continue;
       }
@@ -1189,9 +1207,7 @@ function cacheVendorPrices(parsed) {
 }
 
 function isPro() {
-  if(!currentUser) return false;
-  const status = DB.get('pro_'+currentUser.email);
-  return status === true;
+  return getUserPlan() === 'pro';
 }
 
 function getSavedEventCount() {
@@ -1203,13 +1219,23 @@ function getSavedEventCount() {
 // The plan limit counts events PRICED (analyzed) this month, whether or not
 // they are saved. Before this, only saved events counted, so a free user could
 // keep analyzing new events forever as long as they never hit Save.
-function usageKey() {
+let usageCache = { event_count: 0, fingerprints: [] };
+function monthKey() {
   const d = new Date();
-  return 'usage_' + currentUser.email + '_' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0'); // same as server
+}
+async function refreshUsage() {
+  if(!currentUser) return;
+  try {
+    const { data } = await SB.from('monthly_usage').select('event_count,fingerprints')
+      .eq('user_id', currentUser.id).eq('month', monthKey()).maybeSingle();
+    usageCache = data || { event_count: 0, fingerprints: [] };
+  } catch(e) { console.warn('usage', e); }
+  updatePlanBadge();
 }
 function getMonthlyUsage() {
   if(!currentUser) return 0;
-  return DB.get(usageKey()) || 0;
+  return usageCache.event_count || 0;
 }
 function hasUnlimitedEvents() {
   return isPro() || getEventLimit() === Infinity;
@@ -1241,35 +1267,30 @@ function checkFreeLimit() {
   return true;
 }
 
+// Quick check before calling the AI so users see the upgrade screen right away.
+// The server makes the real decision and records the event.
 function recordAndCheckLimit() {
   if(!currentUser || hasUnlimitedEvents() || isSameCountedDraft()) return true;
-  const used = getMonthlyUsage();
-  if(used >= getEventLimit()) {
+  const fp = draftFingerprint();
+  const alreadyCounted = (usageCache.fingerprints || []).includes(fp.slice(0,300));
+  if(!alreadyCounted && getMonthlyUsage() >= getEventLimit()) {
     showUpgradeModal();
     return false;
   }
-  DB.set(usageKey(), used + 1);
-  draftCounted = draftFingerprint();
-  updatePlanBadge();
+  draftCounted = fp;
   return true;
 }
 
 async function verifyAndSetPro() {
   if(!currentUser) return;
   try {
-    const res = await fetch(RAILWAY+'/api/verify-subscription', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ email: currentUser.email })
-    });
+    const res = await fetch(RAILWAY+'/api/sync-plan', { method:'POST', headers: await authHeaders(), body: '{}' });
     const data = await res.json();
-    if(data.plan) {
-      DB.set('plan_'+currentUser.email, data.plan); // 'basic' or 'pro'
-    } else if(data.isPro) {
-      DB.set('plan_'+currentUser.email, 'pro');
-    }
+    if(data.plan && currentUser) { currentUser.plan = data.plan; currentUser.trialEndsAt = data.onTrial ? data.trialEndsAt : null; }
     updatePlanBadge();
     updateFeatureAccess();
-  } catch(e) {}
+    return data.plan;
+  } catch(e) { return null; }
 }
 
 async function startCheckout(plan) {
@@ -1280,8 +1301,8 @@ async function startCheckout(plan) {
   if(btn) { btn.disabled=true; btn.textContent='Loading...'; }
   try {
     const res = await fetch(RAILWAY+'/api/create-checkout', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ email: currentUser.email, userId: currentUser.email, plan })
+      method:'POST', headers: await authHeaders(),
+      body: JSON.stringify({ plan })
     });
     const data = await res.json();
     if(data.url) {
@@ -1302,7 +1323,12 @@ function updatePlanBadge() {
   if(!badge) return;
   const plan = getUserPlan();
   const up = document.getElementById('upgradePrompt');
-  if(plan === 'pro') {
+  if(plan === 'pro' && currentUser?.trialEndsAt) {
+    const days = Math.max(1, Math.ceil((Date.parse(currentUser.trialEndsAt) - Date.now()) / 86400000));
+    badge.textContent = 'PRO TRIAL · ' + days + (days === 1 ? ' day' : ' days') + ' left';
+    badge.style.color = days <= 3 ? '#e67e22' : 'var(--gold-light)';
+    if(up) up.style.display = 'block';   // keep the upgrade option visible during the trial
+  } else if(plan === 'pro') {
     badge.textContent = 'PRO PLAN';
     badge.style.color = 'var(--gold-light)';
     if(up) up.style.display = 'none';
@@ -1339,40 +1365,30 @@ function hideUpgradeModal() {
 
 function checkUpgradeReturn() {
   const params = new URLSearchParams(window.location.search);
-  if(params.get('upgrade')==='success') {
-    const plan = params.get('plan') || 'pro';
-    // Store pending plan — will be applied on login if not logged in yet
-    DB.set('pending_upgrade', plan);
-    if(currentUser) {
-      applyPendingUpgrade();
-    } else {
-      const msg = plan === 'basic'
-        ? '🎉 Payment successful! Sign in to activate your Basic plan.'
-        : '🎉 Payment successful! Sign in to activate your PRO plan.';
-      showToast(msg);
+  const result = params.get('upgrade');
+  if(!result) return;
+  window.history.replaceState({}, '', window.location.pathname);
+  if(result === 'cancelled') { showToast('Upgrade cancelled — you can upgrade anytime.'); return; }
+  if(result !== 'success') return;
+  if(!currentUser) { showToast('🎉 Payment received! Sign in to activate your plan.'); return; }
+  showToast('🎉 Payment received — activating your plan…');
+  // Stripe can take a few seconds to confirm; check a few times.
+  (async () => {
+    for(let i = 0; i < 6; i++) {
+      const plan = await verifyAndSetPro();
+      if(plan && plan !== 'free') {
+        showToast(plan === 'basic' ? '🎉 Welcome to ChefBid Basic! Your account is upgraded.' : '🎉 Welcome to ChefBid PRO! All features unlocked!');
+        const up = document.getElementById('upgradePrompt');
+        if(up && plan === 'pro') up.style.display = 'none';
+        return;
+      }
+      await new Promise(r => setTimeout(r, 4000));
     }
-    window.history.replaceState({}, '', window.location.pathname);
-  } else if(params.get('upgrade')==='cancelled') {
-    showToast('Upgrade cancelled — you can upgrade anytime.');
-    window.history.replaceState({}, '', window.location.pathname);
-  }
+    showToast('Payment received. If your plan doesn\'t show yet, sign out and back in in a minute.');
+  })();
 }
 
-function applyPendingUpgrade() {
-  const plan = DB.get('pending_upgrade');
-  if(!plan || !currentUser) return;
-  DB.set('plan_'+currentUser.email, plan);
-  DB.set('pro_'+currentUser.email, plan === 'pro');
-  DB.del('pending_upgrade');
-  const msg = plan === 'basic'
-    ? '🎉 Welcome to ChefBid Basic! Your account is upgraded.'
-    : '🎉 Welcome to ChefBid PRO! All features unlocked!';
-  showToast(msg);
-  updatePlanBadge();
-  updateFeatureAccess();
-  const up = document.getElementById('upgradePrompt');
-  if(up && plan === 'pro') up.style.display = 'none';
-}
+function applyPendingUpgrade() { /* plans are now set by the server from Stripe */ }
 
 // ═══════════════════════════════════════════════
 // AUTH
@@ -1488,12 +1504,17 @@ async function startSession(user) {
   if(sessionStarting) return sessionStarting;
   sessionStarting = (async () => {
     let name = user.user_metadata?.name || user.email.split('@')[0];
+    let plan = 'free', trialEndsAt = null;
     try {
-      const { data } = await SB.from('profiles').select('name').eq('id', user.id).maybeSingle();
+      const { data } = await SB.from('profiles').select('name,plan,created_at').eq('id', user.id).maybeSingle();
       if(data && data.name) name = data.name;
+      if(data && data.plan) plan = data.plan;
+      // 14-day PRO trial for new accounts (the server applies the same rule)
+      const trialEnd = data && data.created_at ? Date.parse(data.created_at) + 14*24*60*60*1000 : 0;
+      if(plan === 'free' && Date.now() < trialEnd) { plan = 'pro'; trialEndsAt = new Date(trialEnd).toISOString(); }
     } catch(e) { console.warn('profile load', e); }
-    loginUser({ id: user.id, name, email: user.email });
-    await loadEvents();
+    loginUser({ id: user.id, name, email: user.email, plan, trialEndsAt });
+    await Promise.all([loadEvents(), refreshUsage()]);
     refreshDashboard();
     if(document.getElementById('page-events')?.classList.contains('active')) renderEvents();
   })();
@@ -1501,7 +1522,7 @@ async function startSession(user) {
 }
 
 function loginUser(user) {
-  currentUser = { id: user.id, name: user.name, email: user.email };
+  currentUser = { id: user.id, name: user.name, email: user.email, plan: user.plan || 'free', trialEndsAt: user.trialEndsAt || null };
   setAuthNotice('');
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
@@ -1521,6 +1542,7 @@ async function doLogout() {
   try { await SB.auth.signOut(); } catch(e) {}
   currentUser = null;
   eventsCache = [];
+  usageCache = { event_count: 0, fingerprints: [] };
   document.getElementById('appShell').style.display = 'none';
   document.getElementById('authScreen').style.display = 'flex';
   switchAuth('login');
@@ -1717,6 +1739,7 @@ Respond with ONLY this JSON:
 
     clearTimeout(timeout);
     const data = await fetchAI({
+      eventFingerprint: draftFingerprint(),
       model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: systemPrompt,
@@ -2158,7 +2181,7 @@ Total event price and per-person price to hit ${targetMargin}% margin after $${l
 Three specific tips for this menu/event. Keep each tip to 1-2 sentences.`;
 
   try {
-    const data = await fetchAI({ model: "claude-sonnet-4-6", max_tokens: 1500, messages: [{ role:"user", content:prompt }] });
+    const data = await fetchAI({ eventFingerprint: draftFingerprint(), model: "claude-sonnet-4-6", max_tokens: 1500, messages: [{ role:"user", content:prompt }] });
     if(data.error) {
       const errMsg = data.error.message || JSON.stringify(data.error);
       document.getElementById('aiMainText').innerHTML = `<span style="color:var(--red)">⚠ AI Error: ${errMsg}. Please try again.</span>`;
