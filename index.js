@@ -49,6 +49,12 @@ app.get("/app.html", (c) => {
   } catch(e) { return c.text("Not found", 404); }
 });
 
+// Phase 2 test page (Supabase accounts). Remove once it replaces /app.
+app.get("/app2", (c) => {
+  try { return c.html(readFileSync("./app2.html", "utf8")); }
+  catch(e) { return c.text("app2.html not found", 404); }
+});
+
 app.get("/privacy", (c) => {
   try { return c.html(readFileSync("./privacy.html", "utf8"), 200, noCache); }
   catch(e) { return c.text("Not found", 404); }
