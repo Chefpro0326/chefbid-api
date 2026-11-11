@@ -239,11 +239,14 @@ app.post("/api/ai", async (c) => {
   if(!user) return signinError(c);
   try {
     const body = await c.req.json();
-    const plan = await currentPlan(user);
+    // Until SUPABASE_SECRET_KEY is set on this server, plans and event counts
+    // can't be read, so signed-in users get the AI without counting.
+    const plan = SB_SECRET ? await currentPlan(user) : "pro";
+    if(!SB_SECRET) console.warn("SUPABASE_SECRET_KEY missing: event limits not enforced");
 
     // A NEW event uses one of this month's slots. Re-analyzing the same event
     // (same fingerprint) is free. Enforced here, so no browser trick gets around it.
-    if(typeof body.eventFingerprint === "string" && body.eventFingerprint.trim()) {
+    if(SB_SECRET && typeof body.eventFingerprint === "string" && body.eventFingerprint.trim()) {
       const slot = await sbRest("rpc/claim_event_slot", {
         method: "POST",
         body: JSON.stringify({
@@ -317,6 +320,7 @@ app.post("/api/create-checkout", async (c) => {
 
 // Signed-in user asks: "what plan am I on?" The server checks Stripe itself.
 async function handlePlanSync(c) {
+  if(!SB_SECRET) return c.json({ plan: "pro", isPro: true, onTrial: false, setupIncomplete: true });
   const user = await getUser(c);
   if(!user) { let why=""; try{why=c.get("authFail")||"";}catch(e){} return c.json({ error: "Please sign in again.", detail: why }, 401); }
   let paid, stale = false;
