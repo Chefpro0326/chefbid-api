@@ -9,6 +9,8 @@ const SPRO = (process.env.STRIPE_PRICE_ID || "").trim();
 const SBAS = (process.env.STRIPE_BASIC_PRICE_ID || "").trim();
 const SB_URL = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
 const SB_SECRET = (process.env.SUPABASE_SECRET_KEY || "").trim();
+// Public (publishable) key — same one the app page uses. Used to verify sign-ins.
+const SB_PUBLIC = (process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_ikFTSJfkejuCmOlZ9Xv9Cg_FIdvRINq").trim();
 const PORT = process.env.PORT || "3000";
 
 console.log("ChefBid API | Anthropic:", !!AKEY, "| Stripe:", !!SKEY, "| Supabase:", !!(SB_URL && SB_SECRET));
@@ -33,16 +35,26 @@ async function sbRest(path, opts = {}) {
 
 // Who is calling? Checks the sign-in token the app sends with each request.
 async function getUser(c) {
-  if(!SB_URL || !SB_SECRET) return null;
+  c.set && c.set("authFail", "");
+  const fail = (why) => { console.error("auth check failed:", why); try { c.set("authFail", why); } catch(e) {} return null; };
+  if(!SB_URL) return fail("server is missing SUPABASE_URL");
   const auth = c.req.header("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if(!token) return null;
+  if(!token) return fail("no sign-in token sent");
   try {
-    const res = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_SECRET, Authorization: "Bearer " + token } });
-    if(!res.ok) return null;
+    const res = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_PUBLIC, Authorization: "Bearer " + token } });
+    if(!res.ok) {
+      const body = (await res.text()).slice(0, 160);
+      return fail("Supabase said " + res.status + ": " + body);
+    }
     const user = await res.json();
-    return user && user.id ? user : null;
-  } catch(e) { return null; }
+    return user && user.id ? user : fail("Supabase returned no user");
+  } catch(e) { return fail("could not reach Supabase: " + e.message); }
+}
+
+function signinError(c) {
+  let why = ""; try { why = c.get("authFail") || ""; } catch(e) {}
+  return c.json({ error: { code: "signin_required", message: "Please sign in again.", detail: why } }, 401);
 }
 
 async function getProfile(uid) {
@@ -217,7 +229,7 @@ app.post("/api/ai", async (c) => {
     return c.json({ error: { message: "Too many requests. Please wait a few minutes and try again." } }, 429);
   }
   const user = await getUser(c);
-  if(!user) return c.json({ error: { code: "signin_required", message: "Please sign in again." } }, 401);
+  if(!user) return signinError(c);
   try {
     const body = await c.req.json();
     const plan = await currentPlan(user);
@@ -266,7 +278,7 @@ app.post("/api/ai", async (c) => {
 app.post("/api/create-checkout", async (c) => {
   if(!SKEY || !SPRO) return c.json({ error: "Stripe not configured." }, 500);
   const user = await getUser(c);
-  if(!user) return c.json({ error: "Please sign in again." }, 401);
+  if(!user) { let why=""; try{why=c.get("authFail")||"";}catch(e){} return c.json({ error: "Please sign in again.", detail: why }, 401); }
   try {
     const { plan } = await c.req.json();
     const email = user.email, userId = user.id;
@@ -299,7 +311,7 @@ app.post("/api/create-checkout", async (c) => {
 // Signed-in user asks: "what plan am I on?" The server checks Stripe itself.
 async function handlePlanSync(c) {
   const user = await getUser(c);
-  if(!user) return c.json({ error: "Please sign in again." }, 401);
+  if(!user) { let why=""; try{why=c.get("authFail")||"";}catch(e){} return c.json({ error: "Please sign in again.", detail: why }, 401); }
   let paid, stale = false;
   try { paid = await syncPlan(user); }
   catch(e) { console.error("sync-plan", e.message); stale = true; }   // Stripe unreachable: keep current plan
@@ -316,12 +328,34 @@ async function handlePlanSync(c) {
   }
 }
 app.post("/api/sync-plan", handlePlanSync);
+
+// Open chefbidpro.com/api/health in a browser to see whether the server is set up.
+app.get("/api/health", async (c) => {
+  const out = {
+    anthropic_key: !!AKEY, stripe_key: !!SKEY, stripe_prices: !!(SPRO && SBAS),
+    supabase_url: SB_URL || "(missing)",
+    supabase_secret_key: SB_SECRET ? (SB_SECRET.startsWith("sb_secret_") || SB_SECRET.startsWith("eyJ") ? "present" : "present but does not look like a secret key") : "(missing)"
+  };
+  try {
+    const r = await fetch(SB_URL + "/auth/v1/health", { headers: { apikey: SB_PUBLIC } });
+    out.supabase_reachable = r.ok ? "yes" : "no (" + r.status + ")";
+  } catch(e) { out.supabase_reachable = "no (" + e.message + ")"; }
+  try {
+    await sbRest("profiles?select=id&limit=1");
+    out.secret_key_works = "yes";
+  } catch(e) { out.secret_key_works = "no — " + e.message.slice(0, 120); }
+  try {
+    const r = await sbRest("rpc/claim_event_slot", { method: "POST", body: JSON.stringify({ p_user: "00000000-0000-0000-0000-000000000000", p_month: "health", p_fingerprint: "x", p_limit: 0 }) });
+    out.event_counter_installed = "yes";
+  } catch(e) { out.event_counter_installed = /does not exist|Could not find/i.test(e.message) ? "no — run the second Supabase script" : "yes"; }
+  return c.json(out);
+});
 app.post("/api/verify-subscription", handlePlanSync);
 
 app.post("/api/cancel-subscription", async (c) => {
   if(!SKEY) return c.json({ error: "Not configured" }, 500);
   const user = await getUser(c);
-  if(!user) return c.json({ error: "Please sign in again." }, 401);
+  if(!user) { let why=""; try{why=c.get("authFail")||"";}catch(e){} return c.json({ error: "Please sign in again.", detail: why }, 401); }
   try {
     const email = user.email;
     const custRes = await fetch(`https://api.stripe.com/v1/customers?email=${encodeURIComponent(email)}&limit=1`, {

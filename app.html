@@ -1165,10 +1165,16 @@ async function fetchAI(payload, retries = 3, delayMs = 3000) {
         const err = new Error(data.error?.message || "You've used all of this month's events.");
         err.noRetry = true; throw err;
       }
-      if(res.status === 401) {          // sign-in expired
-        showToast('Please sign in again.');
-        doLogout();
-        const err = new Error('Please sign in again.'); err.noRetry = true; throw err;
+      if(res.status === 401) {
+        // Refresh the sign-in once and retry; never sign the user out over this.
+        if(!payload.__refreshed) {
+          try { await SB.auth.refreshSession(); } catch(e) {}
+          return fetchAI({ ...payload, __refreshed: true }, retries, delayMs);
+        }
+        const why = data.error?.detail ? '\n\nDetails: ' + data.error.detail : '';
+        alert('ChefBid could not confirm your sign-in with the server.' + why + '\n\nPlease send a screenshot of this message to support.');
+        const err = new Error('Sign-in check failed' + (data.error?.detail ? ': ' + data.error.detail : ''));
+        err.noRetry = true; throw err;
       }
       if(payload.eventFingerprint) refreshUsage();
       // If overloaded and retries remain — wait and retry
