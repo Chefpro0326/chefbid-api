@@ -652,20 +652,23 @@ body {
       <button class="auth-tab" onclick="switchAuth('signup')">Create Account</button>
     </div>
     <div id="loginForm">
-      <div class="auth-field"><label>Email</label><input type="email" id="loginEmail" placeholder="chef@restaurant.com"></div>
-      <div class="auth-field"><label>Password</label><input type="password" id="loginPw" placeholder="••••••••"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="loginEmail" name="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="chef@restaurant.com"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="loginPw" name="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:-4px 0 10px;opacity:.8;cursor:pointer"><input type="checkbox" onchange="document.getElementById('loginPw').type=this.checked?'text':'password'"> Show password</label>
       <button class="auth-btn" onclick="doLogin()">Sign In</button>
       <div style="text-align:center;margin-top:12px"><a href="#" onclick="doForgotPassword();return false;" style="color:var(--gold,#c9a227);font-size:13px">Forgot password?</a></div>
     </div>
     <div id="signupForm" style="display:none">
       <div class="auth-field"><label>Your Name</label><input type="text" id="signupName" placeholder="Chef Marcus"></div>
-      <div class="auth-field"><label>Email</label><input type="email" id="signupEmail" placeholder="chef@restaurant.com"></div>
-      <div class="auth-field"><label>Password</label><input type="password" id="signupPw" placeholder="Min 6 characters"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="signupEmail" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="chef@restaurant.com"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="signupPw" autocomplete="new-password" placeholder="Min 6 characters"></div>
 
       <button class="auth-btn" onclick="doSignup()">Create Free Account</button>
     </div>
     <div id="resetForm" style="display:none">
-      <div class="auth-field"><label>New Password</label><input type="password" id="resetPw" placeholder="Min 6 characters"></div>
+      <input type="email" id="resetEmail" autocomplete="username" style="position:absolute;left:-9999px;width:1px;height:1px" tabindex="-1" aria-hidden="true">
+      <div class="auth-field"><label>New Password</label><input type="password" id="resetPw" name="new-password" autocomplete="new-password" placeholder="Min 6 characters"></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:-4px 0 10px;opacity:.8;cursor:pointer"><input type="checkbox" onchange="document.getElementById('resetPw').type=this.checked?'text':'password'"> Show password</label>
       <button class="auth-btn" onclick="doSetNewPassword()">Save New Password</button>
     </div>
     <div class="auth-error" id="authError"></div>
@@ -1423,7 +1426,7 @@ function setAuthNotice(msg) {
 }
 function friendlyAuthError(err) {
   const m = (err && err.message) || String(err);
-  if(/invalid login credentials/i.test(m)) return 'Invalid email or password.';
+  if(/invalid login credentials/i.test(m)) return 'That email and password don\'t match. If your phone filled in the password, tap "Show password" to check it — it may be an old one.';
   if(/email not confirmed/i.test(m)) return 'Please confirm your email first — check your inbox for the link from ChefBid PRO.';
   if(/already registered|already exists/i.test(m)) return 'An account with this email already exists. Sign in instead.';
   if(/rate limit|too many/i.test(m)) return 'Too many attempts. Please wait a minute and try again.';
@@ -1482,6 +1485,9 @@ function showResetForm() {
   document.getElementById('authScreen').style.display = 'flex';
   ['loginForm','signupForm'].forEach(id => document.getElementById(id).style.display = 'none');
   document.getElementById('resetForm').style.display = 'block';
+  SB.auth.getSession().then(({ data }) => {
+    const em = data?.session?.user?.email; if(em) document.getElementById('resetEmail').value = em;
+  }).catch(() => {});
   setAuthNotice('Choose a new password for your account.');
 }
 
@@ -1497,6 +1503,7 @@ async function doSetNewPassword() {
     if(OPENED_FROM_RESET_LINK) history.replaceState(null, '', APP_URL);
     setAuthNotice('');
     showToast('✓ Password updated');
+    if(data?.user?.email) document.getElementById('loginEmail').value = data.user.email;
     await startSession(data.user);
   } catch(err) { setAuthError(friendlyAuthError(err)); }
   finally { setAuthBusy(false); }
