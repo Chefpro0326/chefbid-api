@@ -338,7 +338,13 @@ app.post("/api/sync-plan", handlePlanSync);
 
 // Open chefbidpro.com/api/health in a browser to see whether the server is set up.
 app.get("/api/health", async (c) => {
+  const E = process.env;
   const out = {
+    running_on: E.RAILWAY_SERVICE_NAME ? "Railway" : (E.RENDER || E.RENDER_SERVICE_NAME ? "Render" : "unknown"),
+    service_name: E.RAILWAY_SERVICE_NAME || E.RENDER_SERVICE_NAME || "(unknown)",
+    project_name: E.RAILWAY_PROJECT_NAME || "",
+    environment_name: E.RAILWAY_ENVIRONMENT_NAME || "",
+    default_address: E.RAILWAY_PUBLIC_DOMAIN || E.RENDER_EXTERNAL_HOSTNAME || "",
     anthropic_key: !!AKEY, stripe_key: !!SKEY, stripe_prices: !!(SPRO && SBAS),
     supabase_url: SB_URL || "(missing)",
     supabase_url_setting: envLoose("SUPABASE_URL") ? "found" : "(not found — using built-in project URL)",
