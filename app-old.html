@@ -633,7 +633,6 @@ body {
 #scaledIngTable tr:hover td { background:var(--surface2); }
 #scaledIngTable .price-best { color:var(--green); font-weight:600; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="loading-bar" id="loadingBar"></div>
@@ -655,7 +654,6 @@ body {
       <div class="auth-field"><label>Email</label><input type="email" id="loginEmail" placeholder="chef@restaurant.com"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="loginPw" placeholder="••••••••"></div>
       <button class="auth-btn" onclick="doLogin()">Sign In</button>
-      <div style="text-align:center;margin-top:12px"><a href="#" onclick="doForgotPassword();return false;" style="color:var(--gold,#c9a227);font-size:13px">Forgot password?</a></div>
     </div>
     <div id="signupForm" style="display:none">
       <div class="auth-field"><label>Your Name</label><input type="text" id="signupName" placeholder="Chef Marcus"></div>
@@ -664,12 +662,7 @@ body {
 
       <button class="auth-btn" onclick="doSignup()">Create Free Account</button>
     </div>
-    <div id="resetForm" style="display:none">
-      <div class="auth-field"><label>New Password</label><input type="password" id="resetPw" placeholder="Min 6 characters"></div>
-      <button class="auth-btn" onclick="doSetNewPassword()">Save New Password</button>
-    </div>
     <div class="auth-error" id="authError"></div>
-    <div id="authNotice" style="display:none;margin-top:12px;padding:12px;border-radius:8px;background:rgba(46,160,67,.12);color:#2ea043;font-size:14px;line-height:1.4"></div>
     <div class="auth-pro-badge">✦ FREE PLAN · No Credit Card Required</div>
   </div>
 </div>
@@ -1075,30 +1068,6 @@ body {
 // ═══════════════════════════════════════════════
 // DATA LAYER — localStorage persistence
 // ═══════════════════════════════════════════════
-// ── SUPABASE (accounts + saved events live online, on every device) ──
-const SUPABASE_URL = 'https://optkmulvhwvbowfofpbd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_ikFTSJfkejuCmOlZ9Xv9Cg_FIdvRINq'; // publishable key: safe in the page
-const SB = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// Listen for sign-in changes right away (before the page finishes loading),
-// so links from emails (confirm account, reset password) are never missed.
-const OPENED_FROM_RESET_LINK = /type=recovery/.test(location.hash + location.search);
-function whenPageReady(fn) {
-  if(document.readyState === 'complete') setTimeout(fn, 0);
-  else window.addEventListener('load', () => setTimeout(fn, 0));
-}
-SB.auth.onAuthStateChange((event, session) => {
-  whenPageReady(() => {
-    if(event === 'PASSWORD_RECOVERY' || (OPENED_FROM_RESET_LINK && session && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED')) {
-      if(document.getElementById('resetForm').dataset.done !== '1') { showResetForm(); return; }
-    }
-    if((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && document.getElementById('resetForm').style.display !== 'block') {
-      startSession(session.user);
-    }
-    if(event === 'SIGNED_OUT' && currentUser) doLogout();
-  });
-});
-
 const DB = {
   get: k => JSON.parse(localStorage.getItem('cb_'+k) || 'null'),
   set: (k,v) => localStorage.setItem('cb_'+k, JSON.stringify(v)),
@@ -1196,7 +1165,8 @@ function isPro() {
 
 function getSavedEventCount() {
   if(!currentUser) return 0;
-  return getEvents().length;
+  const events = DB.get('events_'+currentUser.email) || [];
+  return events.length;
 }
 
 // ── MONTHLY USAGE ──
@@ -1388,121 +1358,33 @@ function switchAuth(mode) {
   document.getElementById('authError').textContent = '';
 }
 
-const APP_URL = location.origin + location.pathname;
-
-function setAuthBusy(btnText) {
-  document.querySelectorAll('#authScreen .auth-btn').forEach(b => { b.disabled = !!btnText; });
-}
-function setAuthNotice(msg) {
-  const n = document.getElementById('authNotice');
-  n.textContent = msg || '';
-  n.style.display = msg ? 'block' : 'none';
-  if(msg) document.getElementById('authError').textContent = '';
-}
-function friendlyAuthError(err) {
-  const m = (err && err.message) || String(err);
-  if(/invalid login credentials/i.test(m)) return 'Invalid email or password.';
-  if(/email not confirmed/i.test(m)) return 'Please confirm your email first — check your inbox for the link from ChefBid PRO.';
-  if(/already registered|already exists/i.test(m)) return 'An account with this email already exists. Sign in instead.';
-  if(/rate limit|too many/i.test(m)) return 'Too many attempts. Please wait a minute and try again.';
-  if(/failed to fetch|network/i.test(m)) return 'Connection problem. Check your internet and try again.';
-  return m;
-}
-
-async function doSignup() {
+function doSignup() {
   const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim();
   const pw = document.getElementById('signupPw').value;
   if(!name||!email||!pw) { setAuthError('Please fill all fields.'); return; }
   if(pw.length < 6) { setAuthError('Password must be at least 6 characters.'); return; }
-  setAuthBusy(true);
-  try {
-    const { data, error } = await SB.auth.signUp({
-      email, password: pw,
-      options: { data: { name }, emailRedirectTo: APP_URL }
-    });
-    if(error) throw error;
-    if(data.session) { await startSession(data.session.user); }
-    else {
-      switchAuth('login');
-      document.getElementById('loginEmail').value = email;
-      setAuthNotice('Almost done! We sent a confirmation link to ' + email + '. Tap it, then sign in here.');
-    }
-  } catch(err) { setAuthError(friendlyAuthError(err)); }
-  finally { setAuthBusy(false); }
+  const users = DB.get('users') || {};
+  if(users[email]) { setAuthError('Account already exists. Sign in instead.'); return; }
+  users[email] = { name, email, pw, created: new Date().toISOString(), plan: 'pro' };
+  DB.set('users', users);
+  DB.set('events_'+email, []);
+  DB.set('vendors_'+email, []);
+  loginUser({ name, email });
 }
 
-async function doLogin() {
+function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const pw = document.getElementById('loginPw').value;
   if(!email||!pw) { setAuthError('Please enter email and password.'); return; }
-  setAuthBusy(true);
-  try {
-    const { data, error } = await SB.auth.signInWithPassword({ email, password: pw });
-    if(error) throw error;
-    await startSession(data.user);
-  } catch(err) { setAuthError(friendlyAuthError(err)); }
-  finally { setAuthBusy(false); }
-}
-
-async function doForgotPassword() {
-  const email = document.getElementById('loginEmail').value.trim();
-  if(!email) { setAuthError('Type your email above, then tap "Forgot password?" again.'); return; }
-  try {
-    const { error } = await SB.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
-    if(error) throw error;
-    setAuthNotice('If an account exists for ' + email + ', a password reset link is on its way.');
-  } catch(err) { setAuthError(friendlyAuthError(err)); }
-}
-
-function showResetForm() {
-  document.getElementById('appShell').style.display = 'none';
-  document.getElementById('authScreen').style.display = 'flex';
-  ['loginForm','signupForm'].forEach(id => document.getElementById(id).style.display = 'none');
-  document.getElementById('resetForm').style.display = 'block';
-  setAuthNotice('Choose a new password for your account.');
-}
-
-async function doSetNewPassword() {
-  const pw = document.getElementById('resetPw').value;
-  if(pw.length < 6) { setAuthError('Password must be at least 6 characters.'); return; }
-  setAuthBusy(true);
-  try {
-    const { data, error } = await SB.auth.updateUser({ password: pw });
-    if(error) throw error;
-    document.getElementById('resetForm').style.display = 'none';
-    document.getElementById('resetForm').dataset.done = '1';
-    if(OPENED_FROM_RESET_LINK) history.replaceState(null, '', APP_URL);
-    setAuthNotice('');
-    showToast('✓ Password updated');
-    await startSession(data.user);
-  } catch(err) { setAuthError(friendlyAuthError(err)); }
-  finally { setAuthBusy(false); }
-}
-
-// Turn a signed-in Supabase user into the app's currentUser, then open the app
-let sessionStarting = null;
-async function startSession(user) {
-  if(!user) return;
-  if(currentUser && currentUser.id === user.id) return;
-  if(sessionStarting) return sessionStarting;
-  sessionStarting = (async () => {
-    let name = user.user_metadata?.name || user.email.split('@')[0];
-    try {
-      const { data } = await SB.from('profiles').select('name').eq('id', user.id).maybeSingle();
-      if(data && data.name) name = data.name;
-    } catch(e) { console.warn('profile load', e); }
-    loginUser({ id: user.id, name, email: user.email });
-    await loadEvents();
-    refreshDashboard();
-    if(document.getElementById('page-events')?.classList.contains('active')) renderEvents();
-  })();
-  try { await sessionStarting; } finally { sessionStarting = null; }
+  const users = DB.get('users') || {};
+  if(!users[email] || users[email].pw !== pw) { setAuthError('Invalid email or password.'); return; }
+  loginUser(users[email]);
 }
 
 function loginUser(user) {
-  currentUser = { id: user.id, name: user.name, email: user.email };
-  setAuthNotice('');
+  currentUser = { name: user.name, email: user.email };
+  DB.set('currentUser', currentUser);
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
   document.getElementById('userAvatar').textContent = (user.name||'C')[0].toUpperCase();
@@ -1517,23 +1399,24 @@ function loginUser(user) {
   renderVendorTable();
 }
 
-async function doLogout() {
-  try { await SB.auth.signOut(); } catch(e) {}
+// API key is managed server-side — no user action needed
+
+function doLogout() {
   currentUser = null;
-  eventsCache = [];
+  DB.del('currentUser');
   document.getElementById('appShell').style.display = 'none';
   document.getElementById('authScreen').style.display = 'flex';
-  switchAuth('login');
   document.getElementById('authError').textContent = '';
 }
 
 function setAuthError(msg) {
   document.getElementById('authError').textContent = msg;
-  if(msg) { const n = document.getElementById('authNotice'); if(n) n.style.display = 'none'; }
 }
 
 // Auto-login if session exists
-window.addEventListener('load', async () => {
+window.addEventListener('load', () => {
+  const u = DB.get('currentUser');
+  if(u) loginUser(u);
   // init form rows
   addIng(); addIng(); addIng();
   document.getElementById('evDate').valueAsDate = new Date();
@@ -2262,48 +2145,20 @@ async function getPricingAdvice() {
 // ═══════════════════════════════════════════════
 // SAVE & EVENTS
 // ═══════════════════════════════════════════════
-// Saved events live in Supabase. eventsCache is this page's copy, refreshed
-// after every change, so the rest of the app can read events instantly.
-let eventsCache = [];
-function getEvents() { return eventsCache; }
-
-function rowToEvent(row) {
-  return { ...(row.data || {}), id: row.id, name: row.name ?? row.data?.name, date: row.data?.date ?? row.event_date };
-}
-function eventToRow(ev) {
-  const { id, ...data } = ev;
-  const d = /^\d{4}-\d{2}-\d{2}$/.test(String(ev.date||'')) ? ev.date : null;
-  return { name: ev.name || null, event_date: d, data };
-}
-
-async function loadEvents() {
-  if(!currentUser) return [];
-  const { data, error } = await SB.from('events').select('*').order('created_at', { ascending: false });
-  if(error) { console.error('load events', error); showToast('Could not load your saved events. Check your connection.'); return eventsCache; }
-  eventsCache = (data || []).map(rowToEvent);
-  return eventsCache;
-}
-
-async function saveCurrentEvent() {
+function saveCurrentEvent() {
   if(!lastAnalysis || !currentUser) return;
   // The monthly limit is enforced when the event is analyzed, not here,
   // so saving never blocks a quote the user already priced.
-  const btn = document.querySelector('#saveEventSection button');
-  if(btn) btn.disabled = true;
-  try {
-    const row = eventToRow(lastAnalysis);
-    const editing = editingEventId != null && eventsCache.some(e => String(e.id) === String(editingEventId));
-    const { error } = editing
-      ? await SB.from('events').update(row).eq('id', editingEventId)
-      : await SB.from('events').insert(row);
-    if(error) throw error;
-    showToast(editing ? '✓ Event updated!' : '✓ Event saved to your account!');
-    await loadEvents();
-  } catch(err) {
-    console.error('save event', err);
-    alert('Sorry, the event could not be saved. Check your connection and try again.\n\nDetails: ' + (err.message || err));
-    return;
-  } finally { if(btn) btn.disabled = false; }
+  const events = DB.get('events_'+currentUser.email) || [];
+  const idx = editingEventId != null ? events.findIndex(e => String(e.id) === String(editingEventId)) : -1;
+  if(idx >= 0) {
+    events[idx] = { ...lastAnalysis, id: events[idx].id };
+    showToast('✓ Event updated!');
+  } else {
+    events.unshift({ ...lastAnalysis, id: Date.now() });
+    showToast('✓ Event saved to your account!');
+  }
+  DB.set('events_'+currentUser.email, events);
   document.getElementById('saveEventSection').style.display = 'none';
   draftCounted = false;
   editingEventId = null;
@@ -2327,7 +2182,11 @@ function refreshDashboard() {
 // Older or damaged events may have no id. evCard used to invent one on the fly
 // without saving it, so Open/Delete looked for an id that didn't exist.
 function loadEventsWithIds() {
-  return getEvents();
+  const events = DB.get('events_'+currentUser.email) || [];
+  let changed = false;
+  events.forEach((e,i) => { if(!e.id) { e.id = Date.now() + i; changed = true; } });
+  if(changed) DB.set('events_'+currentUser.email, events);
+  return events;
 }
 
 function renderEvents() {
@@ -2337,6 +2196,8 @@ function renderEvents() {
 }
 
 function evCard(ev, idx) {
+  // Ensure every event has an ID
+  if(!ev.id) ev.id = Date.now() + (idx||0);
   const date = ev.date ? new Date(String(ev.date).length===10 ? ev.date+'T12:00:00' : ev.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'No date';
   const safeId = ev.id;
   return `<div class="event-card">
@@ -2344,9 +2205,9 @@ function evCard(ev, idx) {
       <div class="ev-name">${ev.name||'Untitled Event'}</div>
       <div class="ev-meta">${date} · ${ev.guests||0} guests · <span class="ev-badge ${ev.svcType||'full'}">${ev.svcType||'catering'}</span></div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn-primary btn-sm" onclick="openSavedEvent('${safeId}')">📂 Open</button>
-        <button class="btn-outline btn-sm" onclick="exportSavedEventPDF('${safeId}')">⬇ Export PDF</button>
-        <button class="btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteSavedEvent('${safeId}')">🗑 Delete</button>
+        <button class="btn-primary btn-sm" onclick="openSavedEvent(${safeId})">📂 Open</button>
+        <button class="btn-outline btn-sm" onclick="exportSavedEventPDF(${safeId})">⬇ Export PDF</button>
+        <button class="btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteSavedEvent(${safeId})">🗑 Delete</button>
       </div>
     </div>
     <div class="event-cost">
@@ -2369,7 +2230,8 @@ function openSavedEvent(id) {
 
 function openSavedEventInner(id) {
   if(!currentUser) return;
-  const ev = getEvents().find(e => String(e.id) === String(id));
+  const events = DB.get('events_'+currentUser.email) || [];
+  const ev = events.find(e => Number(e.id) === Number(id)) || events.find(e => String(e.id) === String(id));
   if(!ev) { alert('Event not found. Please refresh the page and try again.'); return; }
 
   // Load into lastAnalysis so PDF export and follow-up work
@@ -2421,8 +2283,8 @@ function openSavedEventInner(id) {
         <div style="font-size:0.8rem;color:var(--ink-dim);font-family:'DM Mono',monospace;margin-top:2px">${date} · ${ev.guests||0} guests · ${ev.svcType||'catering'} service</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="editSavedEvent('${ev.id}')">✏️ Edit Event</button>
-        <button class="btn-gold" onclick="exportSavedEventPDF('${ev.id}')">⬇ Export PDF</button>
+        <button class="btn-primary" onclick="editSavedEvent(${ev.id})">✏️ Edit Event</button>
+        <button class="btn-gold" onclick="exportSavedEventPDF(${ev.id})">⬇ Export PDF</button>
       </div>
     </div>
 
@@ -2459,7 +2321,8 @@ function openSavedEventInner(id) {
 // re-analyzed and re-saved. Re-analyzing it does not use a new monthly slot.
 function editSavedEvent(id) {
   if(!currentUser) return;
-  const ev = getEvents().find(e => String(e.id) === String(id));
+  const events = DB.get('events_'+currentUser.email) || [];
+  const ev = events.find(e => String(e.id) === String(id));
   if(!ev) { showToast('Event not found.'); return; }
   closeEventModal();
   clearForm();
@@ -2492,21 +2355,21 @@ function closeEventModal() {
 
 function exportSavedEventPDF(id) {
   if(!currentUser) return;
-  const ev = getEvents().find(e => String(e.id) === String(id));
+  const events = DB.get('events_'+currentUser.email) || [];
+  const ev = events.find(e => Number(e.id) === Number(id)) || events.find(e => String(e.id) === String(id));
   if(!ev) { showToast('Event not found.'); return; }
   // Load into lastAnalysis then export
   lastAnalysis = { ...ev };
   exportPDF();
 }
 
-async function deleteSavedEvent(id) {
+function deleteSavedEvent(id) {
   if(!currentUser) return;
   if(!confirm('Delete this event? This cannot be undone.')) return;
-  const { error } = await SB.from('events').delete().eq('id', id);
-  if(error) { alert('Sorry, the event could not be deleted.\n\nDetails: ' + error.message); return; }
-  await loadEvents();
+  const events = DB.get('events_'+currentUser.email) || [];
+  const updated = events.filter(e => e.id !== id);
+  DB.set('events_'+currentUser.email, updated);
   renderEvents();
-  refreshDashboard();
   showToast('Event deleted.');
 }
 

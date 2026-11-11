@@ -49,10 +49,13 @@ app.get("/app.html", (c) => {
   } catch(e) { return c.text("Not found", 404); }
 });
 
-// Phase 2 test page (Supabase accounts). Remove once it replaces /app.
-app.get("/app2", (c) => {
-  try { return c.html(readFileSync("./app2.html", "utf8")); }
-  catch(e) { return c.text("app2.html not found", 404); }
+// /app2 was the Phase 2 test address; it now lives at /app.
+app.get("/app2", (c) => c.redirect("/app", 301));
+
+// Previous browser-only version, kept briefly as a fallback. Remove after Nov 17, 2026.
+app.get("/app-old", (c) => {
+  try { return c.html(readFileSync("./app-old.html", "utf8")); }
+  catch(e) { return c.text("Not found", 404); }
 });
 
 app.get("/privacy", (c) => {
