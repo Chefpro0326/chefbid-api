@@ -359,6 +359,7 @@ app.get("/api/health", async (c) => {
     supabase_url: SB_URL || "(missing)",
     supabase_url_setting: envLoose("SUPABASE_URL") ? "found" : "(not found — using built-in project URL)",
     supabase_setting_names_seen: Object.keys(process.env).filter(k => /supa/i.test(k)).map(k => JSON.stringify(k)),
+    all_setting_names: Object.keys(process.env).filter(k => !/^(RENDER|PATH|HOME|HOSTNAME|NODE|NPM|PWD|SHLVL|TERM|LANG|_$|IS_PULL_REQUEST|PORT$|BUN|XDG|YARN|COREPACK|DEBIAN|LD_|SSL_|PYTHON|GIT_)/i.test(k)).sort(),
     supabase_secret_key: SB_SECRET ? (SB_SECRET.startsWith("sb_secret_") || SB_SECRET.startsWith("eyJ") ? "present" : "present but does not look like a secret key") : "(missing)"
   };
   try {
