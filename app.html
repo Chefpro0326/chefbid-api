@@ -1090,6 +1090,7 @@ function whenPageReady(fn) {
   if(document.readyState === 'complete') setTimeout(fn, 0);
   else window.addEventListener('load', () => setTimeout(fn, 0));
 }
+whenPageReady(() => { try { const em = localStorage.getItem('cb_last_email'); const f = document.getElementById('loginEmail'); if(em && f && !f.value) f.value = em; } catch(e) {} });
 SB.auth.onAuthStateChange((event, session) => {
   whenPageReady(() => {
     if(event === 'PASSWORD_RECOVERY' || (OPENED_FROM_RESET_LINK && session && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED')) {
@@ -1472,7 +1473,7 @@ async function doLogin() {
 
 async function doForgotPassword() {
   const email = document.getElementById('loginEmail').value.trim();
-  if(!email) { setAuthError('Type your email above, then tap "Forgot password?" again.'); return; }
+  if(!email) { setAuthError('Type your email in the Email box above, then tap "Forgot password?" again.'); document.getElementById('loginEmail').focus(); return; }
   try {
     const { error } = await SB.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
     if(error) throw error;
@@ -1535,6 +1536,7 @@ async function startSession(user) {
 }
 
 function loginUser(user) {
+  try { if(user.email) localStorage.setItem('cb_last_email', user.email); } catch(e) {}
   currentUser = { id: user.id, name: user.name, email: user.email, plan: user.plan || 'free', trialEndsAt: user.trialEndsAt || null };
   setAuthNotice('');
   document.getElementById('authScreen').style.display = 'none';
@@ -1560,6 +1562,7 @@ async function doLogout() {
   document.getElementById('authScreen').style.display = 'flex';
   switchAuth('login');
   document.getElementById('authError').textContent = '';
+  try { const em = localStorage.getItem('cb_last_email'); if(em) document.getElementById('loginEmail').value = em; } catch(e) {}
 }
 
 function setAuthError(msg) {
