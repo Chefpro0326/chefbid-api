@@ -1169,6 +1169,10 @@ async function fetchAI(payload, retries = 3, delayMs = 3000) {
         const err = new Error(data.error?.message || "You've used all of this month's events.");
         err.noRetry = true; throw err;
       }
+      if(res.status === 502 && data.error?.code === 'ai_key_invalid') {
+        alert('The AI is temporarily unavailable (server key problem). Your account is fine. Please try again later.');
+        const err = new Error(data.error.message); err.noRetry = true; throw err;
+      }
       if(res.status === 401) {
         // Refresh the sign-in once and retry; never sign the user out over this.
         if(!payload.__refreshed) {

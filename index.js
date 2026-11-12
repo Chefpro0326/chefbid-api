@@ -279,6 +279,12 @@ app.post("/api/ai", async (c) => {
       body: JSON.stringify(safeBody)
     });
     const data = await response.json();
+    // Never pass Anthropic's 401/403 through: the app would read it as "you're signed out".
+    if(response.status === 401 || response.status === 403) {
+      console.error("Anthropic rejected ANTHROPIC_API_KEY:", JSON.stringify(data).slice(0, 200));
+      return c.json({ error: { code: "ai_key_invalid",
+        message: "The AI service key on the server is invalid. ChefBid support has to update ANTHROPIC_API_KEY on Render." } }, 502);
+    }
     return c.json(data, response.status);
   } catch(e) {
     return c.json({ error: { message: e.message } }, 500);
@@ -355,6 +361,10 @@ app.get("/api/health", async (c) => {
     supabase_setting_names_seen: Object.keys(process.env).filter(k => /supa/i.test(k)).map(k => JSON.stringify(k)),
     supabase_secret_key: SB_SECRET ? (SB_SECRET.startsWith("sb_secret_") || SB_SECRET.startsWith("eyJ") ? "present" : "present but does not look like a secret key") : "(missing)"
   };
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/models?limit=1", { headers: { "x-api-key": AKEY, "anthropic-version": "2023-06-01" } });
+    out.anthropic_key_works = r.ok ? "yes" : "no (" + r.status + ") — replace ANTHROPIC_API_KEY on Render";
+  } catch(e) { out.anthropic_key_works = "unknown — " + e.message; }
   try {
     const r = await fetch(SB_URL + "/auth/v1/health", { headers: { apikey: SB_PUBLIC } });
     out.supabase_reachable = r.ok ? "yes" : "no (" + r.status + ")";
