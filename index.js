@@ -162,23 +162,34 @@ const noCache = {
   'Expires': '0'
 };
 
+// Meta Pixel: turns on only when META_PIXEL_ID is set in Render (digits only).
+const META_PIXEL_ID = String(process.env.META_PIXEL_ID || "").replace(/\D/g, "");
+const PIXEL_SNIPPET = META_PIXEL_ID ? `<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','${META_PIXEL_ID}');fbq('track','PageView');
+</script>` : "";
+function page(file) {
+  const html = readFileSync(file, "utf8");
+  return PIXEL_SNIPPET ? html.replace("</head>", PIXEL_SNIPPET + "\n</head>") : html;
+}
+
 app.get("/", (c) => {
   try {
-    const html = readFileSync("./index.html", "utf8");
+    const html = page("./index.html");
     return c.html(html, 200, noCache);
   } catch(e) { return c.text("index.html not found", 404); }
 });
 
 app.get("/app", (c) => {
   try {
-    const html = readFileSync("./app.html", "utf8");
+    const html = page("./app.html");
     return c.html(html, 200, noCache);
   } catch(e) { return c.text("app.html not found", 404); }
 });
 
 app.get("/app.html", (c) => {
   try {
-    const html = readFileSync("./app.html", "utf8");
+    const html = page("./app.html");
     return c.html(html, 200, noCache);
   } catch(e) { return c.text("Not found", 404); }
 });
@@ -204,17 +215,17 @@ app.get("/terms.html", (c) => c.redirect("/terms", 301));
 app.get("/contact.html", (c) => c.redirect("/contact", 301));
 
 app.get("/privacy", (c) => {
-  try { return c.html(readFileSync("./privacy.html", "utf8"), 200, noCache); }
+  try { return c.html(page("./privacy.html"), 200, noCache); }
   catch(e) { return c.text("Not found", 404); }
 });
 
 app.get("/terms", (c) => {
-  try { return c.html(readFileSync("./terms.html", "utf8"), 200, noCache); }
+  try { return c.html(page("./terms.html"), 200, noCache); }
   catch(e) { return c.text("Not found", 404); }
 });
 
 app.get("/contact", (c) => {
-  try { return c.html(readFileSync("./contact.html", "utf8"), 200, noCache); }
+  try { return c.html(page("./contact.html"), 200, noCache); }
   catch(e) { return c.text("Not found", 404); }
 });
 

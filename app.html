@@ -1419,6 +1419,7 @@ function checkUpgradeReturn() {
     for(let i = 0; i < 6; i++) {
       const plan = await verifyAndSetPro();
       if(plan && plan !== 'free') {
+        try { window.fbq && fbq('track', 'Subscribe', { value: plan === 'basic' ? 14 : 29, currency: 'USD', predicted_ltv: plan === 'basic' ? 14 : 29 }); } catch(e) {}
         showToast(plan === 'basic' ? '🎉 Welcome to ChefBid Basic! Your account is upgraded.' : '🎉 Welcome to ChefBid PRO! All features unlocked!');
         const up = document.getElementById('upgradePrompt');
         if(up && plan === 'pro') up.style.display = 'none';
@@ -1480,6 +1481,7 @@ async function doSignup() {
       options: { data: { name }, emailRedirectTo: APP_URL }
     });
     if(error) throw error;
+    try { window.fbq && fbq('track', 'CompleteRegistration'); } catch(e) {}
     if(data.session) { await startSession(data.session.user); }
     else {
       switchAuth('login');
