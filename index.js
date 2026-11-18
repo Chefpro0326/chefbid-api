@@ -186,11 +186,22 @@ app.get("/app.html", (c) => {
 // /app2 was the Phase 2 test address; it now lives at /app.
 app.get("/app2", (c) => c.redirect("/app", 301));
 
-// Previous browser-only version, kept briefly as a fallback. Remove after Nov 17, 2026.
-app.get("/app-old", (c) => {
-  try { return c.html(readFileSync("./app-old.html", "utf8")); }
+// Old browser-only version retired Nov 2026.
+app.get("/app-old", (c) => c.redirect("/app", 301));
+
+// Link-preview image (Facebook, texts) and browser-tab icon
+app.get("/og-image.png", (c) => {
+  try { return c.body(readFileSync("./og-image.png"), 200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" }); }
   catch(e) { return c.text("Not found", 404); }
 });
+app.get("/favicon.svg", (c) => {
+  try { return c.body(readFileSync("./favicon.svg", "utf8"), 200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }); }
+  catch(e) { return c.text("Not found", 404); }
+});
+app.get("/favicon.ico", (c) => c.redirect("/favicon.svg", 301));
+app.get("/privacy.html", (c) => c.redirect("/privacy", 301));
+app.get("/terms.html", (c) => c.redirect("/terms", 301));
+app.get("/contact.html", (c) => c.redirect("/contact", 301));
 
 app.get("/privacy", (c) => {
   try { return c.html(readFileSync("./privacy.html", "utf8"), 200, noCache); }
