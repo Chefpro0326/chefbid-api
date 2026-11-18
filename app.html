@@ -704,7 +704,7 @@ body {
     <button class="nav-item" onclick="showPage('margins')" id="nav-margins"><span class="nav-icon">📊</span> Profit & Margins</button>
     <div class="sidebar-footer">
       <div id="upgradePrompt" style="margin-bottom:10px">
-        <button onclick="showUpgradeModal()" style="width:100%;padding:10px;background:linear-gradient(135deg,#d4a020,#b8860b);border:none;border-radius:8px;color:white;font-family:'Cormorant Garamond',serif;font-size:0.95rem;font-weight:700;cursor:pointer;letter-spacing:0.3px">
+        <button onclick="showUpgradeModal('Choose a plan to unlock more events and Pro features.')" style="width:100%;padding:10px;background:linear-gradient(135deg,#d4a020,#b8860b);border:none;border-radius:8px;color:white;font-family:'Cormorant Garamond',serif;font-size:0.95rem;font-weight:700;cursor:pointer;letter-spacing:0.3px">
           ✦ Upgrade to PRO
         </button>
       </div>
@@ -939,7 +939,7 @@ body {
         <div style="font-size:0.8rem;color:var(--ink-dim);margin-bottom:10px">Follow-up questions about this event — substitutions, cost cuts, timing, anything.</div>
         <div class="followup-row">
           <div class="field" style="flex:1;margin:0"><input type="text" id="fuInput" placeholder="e.g. How do I cut food cost by 20% without sacrificing quality?"></div>
-          <button class="ask-btn" onclick="askFollowUp()">Ask AI ›</button>
+          <button class="ask-btn" onclick="askFollowUp()" data-pro-label="Ask AI ›">Ask AI ›</button>
         </div>
         <div id="fuResponse" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
           <div class="ai-badge"><div class="ai-dot"></div> AI Response</div>
@@ -951,8 +951,8 @@ body {
         <div style="background:var(--green-bg);border:1px solid rgba(39,115,90,0.25);border-radius:10px;padding:16px 20px">
           <div style="font-weight:600;color:var(--green);margin-bottom:12px;font-size:0.95rem">✓ Analysis complete!</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <button class="btn-primary" style="flex:1;min-width:160px" onclick="saveCurrentEvent()">💾 Save Event</button>
-            <button class="btn-outline" style="flex:1;min-width:160px" onclick="exportPDF()">⬇ Export PDF</button>
+            <button class="btn-primary" style="flex:1;min-width:160px" onclick="saveCurrentEvent()" data-pro-label="💾 Save Event">💾 Save Event</button>
+            <button class="btn-outline" style="flex:1;min-width:160px" onclick="exportPDF()" data-pro-label="⬇ Export PDF">⬇ Export PDF</button>
           </div>
         </div>
       </div>
@@ -1333,6 +1333,7 @@ async function startCheckout(plan) {
 }
 
 function updatePlanBadge() {
+  try { updateFeatureAccess(); } catch(e) {}
   const badge = document.getElementById('planBadge');
   if(!badge) return;
   const plan = getUserPlan();
@@ -1359,15 +1360,31 @@ function updatePlanBadge() {
   }
 }
 
+// Pro-only features: show the upgrade popup instead of running them.
+function requirePro(feature) {
+  if(isPro()) return true;
+  showUpgradeModal(feature + ' is a Pro feature. Upgrade to Pro to unlock it.');
+  return false;
+}
+
 function updateFeatureAccess() {
   // Show/hide nav items based on plan
   const marginsNav = document.getElementById('nav-margins');
   const vendorsNav = document.getElementById('nav-vendors');
   if(marginsNav) marginsNav.style.opacity = canUseMargins() ? '1' : '0.4';
   if(vendorsNav) vendorsNav.style.opacity = canUseVendorHistory() ? '1' : '0.4';
+  const eventsNav = document.getElementById('nav-events');
+  if(eventsNav) eventsNav.style.opacity = canUseSavedEvents() ? '1' : '0.4';
+  // Label the Pro-only buttons so free/Basic users know before they click
+  document.querySelectorAll('[data-pro-label]').forEach(el => {
+    el.textContent = el.getAttribute('data-pro-label') + (isPro() ? '' : ' 🔒 Pro');
+  });
 }
 
-function showUpgradeModal() {
+const UPGRADE_DEFAULT_MSG = 'You have reached your free plan limit. Choose a plan to continue.';
+function showUpgradeModal(msg) {
+  const t = document.getElementById('upgradeMsg');
+  if(t) t.textContent = (typeof msg === 'string' && msg) ? msg : UPGRADE_DEFAULT_MSG;
   const m = document.getElementById('upgradeModal');
   if(m) { m.style.display='flex'; document.body.style.overflow='hidden'; }
 }
@@ -1586,6 +1603,8 @@ window.addEventListener('load', async () => {
 // NAVIGATION
 // ═══════════════════════════════════════════════
 function showPage(name) {
+  const proPages = { events: 'Saved event history', vendors: 'Vendor price history', margins: 'The profit & margin calculator' };
+  if(proPages[name] && !requirePro(proPages[name])) return;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-'+name)?.classList.add('active');
@@ -2261,6 +2280,7 @@ Three specific tips for this menu/event. Keep each tip to 1-2 sentences.`;
 async function askFollowUp() {
   const q = document.getElementById('fuInput').value.trim();
   if(!q || !lastAnalysis) return;
+  if(!requirePro('The AI Sous Chef')) return;
   const btn = document.querySelector('.ask-btn');
   btn.disabled = true; btn.textContent = '...';
   const ctx = `Event: ${lastAnalysis.name}, ${lastAnalysis.guests} guests, ${lastAnalysis.svcType} service. Menu: ${lastAnalysis.recipe}. Food cost: $${lastAnalysis.foodTotal?.toFixed(0)}, Labor: $${lastAnalysis.labor?.toFixed(0)}.`;
@@ -2329,6 +2349,7 @@ async function loadEvents() {
 
 async function saveCurrentEvent() {
   if(!lastAnalysis || !currentUser) return;
+  if(!requirePro('Saving events')) return;
   // The monthly limit is enforced when the event is analyzed, not here,
   // so saving never blocks a quote the user already priced.
   const btn = document.querySelector('#saveEventSection button');
@@ -2715,6 +2736,7 @@ function calcMargin() {
 // ═══════════════════════════════════════════════
 function exportPDF() {
   if(!lastAnalysis) return;
+  if(!requirePro('PDF export')) return;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'letter' });
   const W = doc.internal.pageSize.getWidth();
@@ -2899,7 +2921,7 @@ function showToast(msg) {
     <button onclick="hideUpgradeModal()" style="position:absolute;top:16px;right:20px;background:none;border:none;color:rgba(242,235,224,0.3);font-size:1.4rem;cursor:pointer">×</button>
     <div style="font-size:2.5rem;margin-bottom:8px">👨‍🍳</div>
     <div style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:900;color:#f2ebe0;margin-bottom:6px">Unlock More with ChefBid</div>
-    <div style="font-size:0.85rem;color:rgba(242,235,224,0.45);margin-bottom:24px">You have reached your free plan limit. Choose a plan to continue.</div>
+    <div id="upgradeMsg" style="font-size:0.85rem;color:rgba(242,235,224,0.45);margin-bottom:24px">You have reached your free plan limit. Choose a plan to continue.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
       <!-- BASIC -->
       <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px;text-align:left">
